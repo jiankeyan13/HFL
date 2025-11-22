@@ -1,5 +1,7 @@
 from torch.utils.data import Dataset
 from registry import dataset_builders
+from datasets import cifar10
+from dataset_store import build_dataset
 
 class DatasetStore(Dataset):
     def __init__(self, name, split, dataset):
@@ -16,8 +18,10 @@ def build_dataset(name: str, root:str, is_train: bool):
     return dataset_builders[name](root, is_train)
 
 if __name__ == '__main__':
-    data = build_dataset('cifar10', 'data', True)
-    print(data.name)
-    print(data.split)
-    print(len(data))
-    print(data[0])
+    train_dataset = build_dataset('cifar10', 'data', True)
+    print(train_dataset.split)
+    print(len(train_dataset))
+    data = train_dataset[0]
+    # print(data[0],data[1])
+    test_dataset = build_dataset('cifar10', 'data', False)
+    print(len(test_dataset))
