@@ -1,7 +1,5 @@
 from torch.utils.data import Dataset
 from registry import dataset_builders
-from datasets import cifar10
-from dataset_store import build_dataset
 
 class DatasetStore(Dataset):
     def __init__(self, name, split, dataset):
