@@ -4,9 +4,9 @@ import numpy as np
 
 class DatasetStore(Dataset):
     def __init__(self, name, split, dataset):
-        self.dataset = dataset
         self.name = name
         self.split = split
+        self.dataset = dataset
     
     def __len__(self):
         return len(self.dataset)
