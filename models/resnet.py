@@ -9,7 +9,7 @@ Reference:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from core.utils.registry import MODEL_REGISTRY
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -103,7 +103,7 @@ class ResNet(nn.Module):
         out = self.linear(out)
         return out
 
-
+@MODEL_REGISTRY.register("resnet18")
 def ResNet18(num_classes=10, input_channels=3):
     model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes)
     # 如果要支持灰度图 (MNIST/FashionMNIST)，需要处理 input_channels

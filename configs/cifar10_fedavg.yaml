@@ -1,0 +1,63 @@
+# --- 实验元数据 ---
+project: "FL_Framework_Test"
+name: "fedavg_cifar10_debug"
+seed: 2025
+device: "cuda"  # 如果没有显卡会自动回退到 cpu，但在 Runner 里最好写明
+use_wandb: true # 测试阶段先关掉 wandb，只看控制台输出
+
+# --- 数据配置 ---
+data:
+  dataset: "cifar10"
+  root: "./data_source"  # 数据集下载路径
+  num_clients: 50        # 总客户端数 (为了测试设小一点)
+  val_ratio: 0.1         # 本地划分验证集比例
+  partitioner:
+    name: "dirichlet"    # 使用 Registry 中的名字
+    alpha: 1.0           # Non-IID 程度
+
+# --- 模型配置 ---
+model:
+  name: "resnet18"       # 对应 @MODEL_REGISTRY.register("resnet18")
+  params:
+    num_classes: 10      # 传递给 ResNet18 __init__ 的参数
+
+# --- 算法配置 ---
+algorithm:
+  name: "fedavg"         # 对应 @ALGORITHM_REGISTRY.register("fedavg")
+  params: {}             # FedAvg 不需要额外参数
+
+# --- 服务器组件配置 ---
+server:
+  aggregator:
+    name: "avg"       # 对应 @AGGREGATOR_REGISTRY.register("fedavg")
+  screener:
+    name: null           # FedAvg 不用防御
+  updater:
+    name: "standard"     # 标准更新
+
+# --- 训练流程配置 ---
+training:
+  rounds: 100              # 总轮次 (测试跑 5 轮即可)
+  clients_per_round: 10   # 每轮选几个
+  eval_interval: 10       # 每隔几轮做一次本地评估
+  
+  # 学习率调度器配置
+  scheduler: "cosine"
+  lr: 0.01
+  min_lr: 0.001
+  warmup_rounds: 5
+
+# --- 客户端本地训练配置 ---
+client:
+  epochs: 1              # 本地跑几个 Epoch
+  batch_size: 32
+  momentum: 0.9
+  weight_decay: 0.0005
+
+# --- 评估指标配置 ---
+evaluation:
+  global:                # Server 端测什么
+    - name: "acc"
+    - name: "loss"
+  local:                 # Client 端测什么
+    - name: "acc"

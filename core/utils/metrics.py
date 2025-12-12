@@ -1,12 +1,12 @@
 import torch
-
+from core.utils.registry import METRIC_REGISTRY
 class Metric:
     def __init__(self, name: str):
         self.name = name
 
     def __call__(self, preds: torch.Tensor, targets: torch.Tensor) -> float:
         raise NotImplementedError
-
+@METRIC_REGISTRY.register("acc")
 class Acc(Metric):
     def __init__(self):
         super().__init__("acc")
@@ -17,7 +17,7 @@ class Acc(Metric):
             preds = preds.argmax(dim=1)
         correct = preds.eq(targets).sum().item()
         return correct / len(targets)
-
+@METRIC_REGISTRY.register("asr")
 class ASR(Metric):
     """
     计算攻击成功率 (ASR)。
@@ -36,11 +36,11 @@ class ASR(Metric):
         
         success = preds.eq(self.target_label).sum().item()
         return success / len(preds)
-
+@METRIC_REGISTRY.register("loss")
 class Loss(Metric):
-    def __init__(self, criterion):
+    def __init__(self):
         super().__init__("loss")
-        self.criterion = criterion
+        self.criterion = torch.nn.CrossEntropyLoss()
     
     def __call__(self, preds, targets):
         # 这里 preds 必须是 Logits

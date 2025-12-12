@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from registry import dataset_builders
+from data.registry import dataset_builders
 import numpy as np
 
 class DatasetStore(Dataset):

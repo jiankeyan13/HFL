@@ -14,7 +14,6 @@ class StandardTrainer:
         
         # 1. 配置优化器和调度器
         optimizer = self._get_optimizer()
-        scheduler = self._get_scheduler(optimizer, len(dataloader))
         
         epoch_loss = 0.0
         
@@ -41,8 +40,7 @@ class StandardTrainer:
             
             optimizer.step()
             
-            if scheduler:
-                scheduler.step()
+
                 
             # [Hook] 参数处理 (如 PGD)
             if attack_hooks and 'on_after_step' in attack_hooks:

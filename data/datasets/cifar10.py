@@ -1,5 +1,5 @@
-from registry import register_dataset
-from dataset_store import DatasetStore
+from data.registry import register_dataset
+from data.dataset_store import DatasetStore
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 

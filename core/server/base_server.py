@@ -9,6 +9,7 @@ from .screener.base_screener import BaseScreener
 from .aggregator.base_aggregator import BaseAggregator
 from .aggregator.avg_aggregator import AvgAggregator
 from .updater.base_updater import BaseUpdater
+from torch.utils.data import DataLoader
 
 class BaseServer:
     """
@@ -22,14 +23,13 @@ class BaseServer:
 
     def __init__(self, 
                  model: nn.Module, 
-                 test_loader: Any, 
                  device: torch.device,
-                 client_ids: List[str],
-                 attacker_ids: List[str] = [],
-                 seed: int = 42,
                  screener: Optional[BaseScreener] = None,
                  aggregator: Optional[BaseAggregator] = None,
-                 updater: Optional[BaseUpdater] = None):
+                 updater: Optional[BaseUpdater] = None,
+                 test_loader: Optional[DataLoader] = None,
+                 seed: int = 42,
+                 ):
         """
         Args:
             model: 全局模型实例
@@ -44,14 +44,10 @@ class BaseServer:
         self.device = device
         self.rng = random.Random(seed)
 
-        self.all_clients = client_ids
-        self.attacker_ids = set(attacker_ids) # 用 set 查找更快
-        self.benign_ids = list(set(client_ids) - self.attacker_ids)
-        self.attacker_list = list(self.attacker_ids) # 用于 sample
-
         self.screener = screener
         self.aggregator = aggregator or AvgAggregator() #默认使用 FedAvg 聚合
-        self.updater = updater
+        self.updater = updater or BaseUpdater()
+
 
     def get_global_model(self) -> Dict[str, torch.Tensor]:
         """获取全局模型参数副本 (CPU)"""
@@ -64,23 +60,21 @@ class BaseServer:
             'model_state_dict': self.global_model.state_dict(),
         }, path)
 
-    def select_clients(self, ratio, attacker_ratio=0.0):
-        num_total_select = int(len(self.all_clients) * ratio)
+    def select_clients(self, client_ids: List[str], num_select: int) -> List[str]:
+        """
+        从给定的客户端 ID 列表中随机选择指定数量的客户端。
+        Args:
+            client_ids: 候选客户端 ID 列表。
+            num_select: 要选择的数量。
+        Returns:
+            被选中的客户端 ID 列表。
+        """
+        # 确保选择数量不超过候选总数
+        num_to_sample = min(num_select, len(client_ids))
         
-        if attacker_ratio <= 0:
-            return self.rng.sample(self.all_clients, num_total_select)
-            
-        target_attackers = int(num_total_select * attacker_ratio)
+        selected = self.rng.sample(client_ids, num_to_sample)
         
-        # 修正坏人数,不能超过实际存在的坏人总数
-        attackers = min(target_attackers, len(self.attacker_ids))
-        
-        benigns = num_total_select - attackers
-        
-        selected_attackers = self.rng.sample(self.attacker_list, attackers)
-        selected_benign = self.rng.sample(self.benign_ids, benigns)
-        
-        return selected_attackers + selected_benign
+        return selected
 
     def broadcast(self, selected_clients: List[str]) -> Dict[str, Dict[str, torch.Tensor]]:
         """
@@ -105,18 +99,16 @@ class BaseServer:
         if self.screener:
             # 传入全局模型作为参考 (某些防御如 FLTrust 需要)
             updates = self.screener.screen(updates, self.global_model)
-        
+
+        client_weights = [up['weights'] for up in updates]
+        num_samples = [up['num_samples'] for up in updates]
         # 输入：更新列表 -> 输出：聚合后的权重 (weights dict)
-        aggregated_weights = self.aggregator.aggregate(updates)
+        aggregated_weights = self.aggregator.aggregate(updates=client_weights, weights=num_samples)
 
         # 输入：聚合结果 + 当前模型 -> 输出：原地修改模型
-        if self.updater:
-            self.updater.update(self.global_model, aggregated_weights)
-        else:
-            # 默认行为：直接覆盖
-            self.global_model.load_state_dict(aggregated_weights)
+        self.updater.update(self.global_model, aggregated_weights)
 
-    def eval(self, metrics: List[Callable]) -> Dict[str, float]:
+    def eval_global(self, metrics: List[Callable]) -> Dict[str, float]:
         """
         在服务器持有的测试集上评估全局模型。
         """

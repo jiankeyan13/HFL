@@ -1,8 +1,8 @@
 import numpy as np
 from typing import Dict, List, Tuple
-from dataset_store import build_dataset, DatasetStore
-from partitioner import Partitioner
-from task import Task, TaskSet
+from data.dataset_store import build_dataset, DatasetStore
+from data.partitioner import Partitioner
+from data.task import Task, TaskSet
 
 class TaskGenerator:
     """
@@ -145,10 +145,10 @@ if __name__ == '__main__':
     # 为了运行这个测试，需要确保 registry 里注册了 cifar10_xxx 
     # 所以必须导入 cifar10 模块
     import datasets.cifar10 
-    from partitioner import Dirichlet_Partitioner
+    from partitioner import DirichletPartitioner
 
     # 1. 准备组件
-    partitioner = Dirichlet_Partitioner(seed=114514)
+    partitioner = DirichletPartitioner(seed=114514)
     
     # 2. 初始化 Generator
     generator = TaskGenerator(

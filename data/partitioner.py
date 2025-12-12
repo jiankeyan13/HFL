@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
-from task import Task, TaskSet
-from dataset_store import DatasetStore
+from data.task import Task, TaskSet
+from data.dataset_store import DatasetStore
 from typing import List, Dict
 
 class Partitioner(ABC):
@@ -37,7 +37,7 @@ class IIDPartitioner(Partitioner):
             taskset.add_task(task)
         return taskset
 
-class Dirichlet_Partitioner(Partitioner):
+class DirichletPartitioner(Partitioner):
     def __init__(self, alpha: float=1.0, seed: int=42):
         self.alpha = alpha
         self.seed = seed

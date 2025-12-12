@@ -1,7 +1,8 @@
 import torch
 from typing import List, Dict, Optional
 from .base_aggregator import BaseAggregator
-
+from core.utils.registry import AGGREGATOR_REGISTRY
+@AGGREGATOR_REGISTRY.register("avg")
 class AvgAggregator(BaseAggregator):
     """
     通用线性聚合器 (Linear Aggregator)。

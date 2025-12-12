@@ -153,7 +153,7 @@ class BaseClient:
             "num_samples": self.num_train_samples, # 真实样本数
         }
 
-    def eval(self, 
+    def evaluate(self, 
                  global_state_dict: Dict[str, torch.Tensor],
                  task: Task,
                  dataset_store: DatasetStore,
