@@ -47,7 +47,7 @@ class FederatedRunner:
             config=config,
             use_wandb=config.get('use_wandb', False)
         )
-        
+        self.logger.info(f"Runner is configured to use device: {self.device}")
         self._set_seed(config.get('seed', 42))
         
         self._setup()
@@ -65,19 +65,20 @@ class FederatedRunner:
         # 准备数据
         # 假设 config['data'] 包含了 root, dataset_name, partitioner 等参数
         from data.partitioner import DirichletPartitioner, IIDPartitioner # 临时引入
-        
+        global_seed = self.config.get('seed', 42)
         part_conf = self.config['data']['partitioner']
         if part_conf['name'] == 'dirichlet':
-            partitioner = DirichletPartitioner(alpha=part_conf.get('alpha', 0.5))
+            partitioner = DirichletPartitioner(alpha=part_conf.get('alpha', 0.5), seed = global_seed)
         else:
-            partitioner = IIDPartitioner()
+            partitioner = IIDPartitioner(seed = global_seed)
 
         self.task_generator = TaskGenerator(
             dataset_name=self.config['data']['dataset'],
             root=self.config['data']['root'],
             partitioner=partitioner,
             num_clients=self.config['data']['num_clients'],
-            val_ratio=self.config['data'].get('val_ratio', 0.1)
+            val_ratio=self.config['data'].get('val_ratio', 0.1),
+            seed = global_seed
         )
         # 生成任务和数据源
         self.task_set, self.dataset_stores = self.task_generator.generate()
@@ -191,17 +192,12 @@ class FederatedRunner:
         updates = []
         
         for cid in client_ids:
-            # 1. 获取攻击配置
             attack_profile = self._get_attack_profile(cid, config['current_round'])
             
             client = self.client_class(cid, self.device, self.model_fn)
-            # 3. 获取任务索引
             task = self.task_set.get_task(cid, "train")
-            # 找到对应的数据源 (Train Aug 或 Plain)
             store = self.dataset_stores[task.dataset_tag]
             
-            # 4. 执行
-            # 注意：传入的是 server 分发给该 client 的特定模型权重
             payload = client.execute(
                 global_state_dict=client_models[cid],
                 task=task,
@@ -228,8 +224,9 @@ class FederatedRunner:
         
         client_candidates = [c for c in all_clients if c != 'server']
         
-        eval_ids = random.sample(client_candidates, k=min(5, len(client_candidates)))
-        
+        eval_frac = self.config.get('evaluation', {}).get('local', {}).get('sample_frac', 0.2)
+        eval_ids = random.sample(client_candidates, k=max(1, int(len(client_candidates) * eval_frac)))
+
         results_collector = {m.name: [] for m in metrics}
         
         for cid in eval_ids:
@@ -268,7 +265,7 @@ class FederatedRunner:
 
     def _get_attack_profile(self, client_id: str, round_idx: int):
         """
-        [扩展点] 获取攻击配置。
+        获取攻击配置。
         目前返回 None (无攻击)。
         未来在这里接入 AttackManager。
         """

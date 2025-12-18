@@ -164,6 +164,18 @@ class BaseClient:
         通用评估函数。支持 Metric 注入。
         """
 
+        #客户端BN校准
+        self.receive_model(global_state_dict)
+        calib_loader = self.data_load(task, dataset_store, config, attack_profile=None, mode='train')
+        self.model.train() 
+        with torch.no_grad():
+            num_calib_batches = 5
+            for i, (data, _) in enumerate(calib_loader):
+                if i >= num_calib_batches:
+                    break
+                self.model(data.to(self.device))
+
+
         self.model.eval()
         
         loader = self.data_load(task, dataset_store, config, attack_profile, mode='test')

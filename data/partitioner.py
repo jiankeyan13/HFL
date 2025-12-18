@@ -86,7 +86,7 @@ class DirichletPartitioner(Partitioner):
         return taskset
 
 """
-class Balanced_DirichletP(Partitioner):
+class Balanced_Dirichlet(Partitioner):
 class Pathological_Partitioner(Partitioner):
 """
 
