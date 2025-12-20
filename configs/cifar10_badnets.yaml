@@ -1,8 +1,8 @@
 # --- 实验元数据 ---
 project: "FL-Test"
-name: "cifar10_badnets_debug"
+name: "cifar10_badnets"
 seed: 2025
-device: "cuda:6"
+device: "cuda:0"
 use_wandb: true
 
 # --- 数据配置 ---
@@ -49,7 +49,7 @@ attack:
 # --- 服务器组件配置 ---
 server:
   aggregator:
-    name: "avg"   # 请确认 AvgAggregator 注册名为 'avg'
+    name: "avg"
   screener:
     name: null
   updater:
@@ -59,17 +59,17 @@ server:
 training:
   rounds: 100
   clients_fraction: 0.4   # 每轮参与者比例
-  attackers_frac: 0.25      # 选中者里坏人比例
+  attackers_frac: 0.5      # 选中者里坏人比例
   
   eval_interval: 10
   scheduler: "cosine"
-  lr: 0.1
-  min_lr: 0.003
+  lr: 0.01
+  min_lr: 0.001
   warmup_rounds: 5
 
 # --- 客户端本地训练配置 ---
 client:
-  epochs: 2
+  epochs: 3
   batch_size: 32
   momentum: 0.9
   weight_decay: 0.0005
