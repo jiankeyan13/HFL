@@ -19,7 +19,11 @@ class DatasetStore(Dataset):
         返回: numpy array of shape (N,)
         """
         if hasattr(self.dataset, 'targets'):
-            return np.array(self.dataset.targets)
+            targets = self.dataset.targets
+            if isinstance(targets, np.ndarray):
+                return targets
+             # 如果是 list (torchvision 默认)，转 numpy
+            return np.array(targets)
         if hasattr(self.dataset, 'labels'):
             return np.array(self.dataset.labels)
         print(f"{self.name} has no labels/targets, Iterating to load labels (slow)...")

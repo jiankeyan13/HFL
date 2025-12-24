@@ -1,6 +1,6 @@
 # --- 实验元数据 ---
 project: "FL-Test"
-name: "cifar10_avg_test1_4090"
+name: "cifar10_fedavg"
 seed: 2025
 device: "cuda:6"
 use_wandb: true

@@ -31,6 +31,6 @@ def build_fedavg_algorithm(model, device, dataset_store, config, **kwargs) -> Tu
         test_loader = DataLoader(server_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     server = BaseServer(model=model, aggregator=aggregator, screener=screener, updater=updater, \
-                        device=device, test_loader=test_loader)
+                    device=device, test_loader=test_loader)
 
     return server, BaseClient

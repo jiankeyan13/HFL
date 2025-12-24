@@ -2,6 +2,8 @@ from data.registry import register_dataset
 from data.dataset_store import DatasetStore
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
+import os
+from core.utils.mmap_dataset import MemoryMappedDataset #共享内存
 
 base_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -16,18 +18,23 @@ aug_transform = transforms.Compose([
 ])
 
 def _build_cifar10_impl(root, is_train, use_aug):
-    # 根据是否增强选择 transform
-    t = aug_transform if (is_train and use_aug) else base_transform
-    
-    # 下载/加载
-    real_dataset = CIFAR10(root=root, train=is_train, download=True, transform=t)
-    
+
+    real_dataset = CIFAR10(root=root, train=is_train, download=True, transform=None)
+
+    split_name = "train" if is_train else "test"
+    cache_path = os.path.join(root, f"cifar10_{split_name}_mmap")
+
+    final_transform = aug_transform if (is_train and use_aug) else base_transform
+
+    # MemoryMappedDataset 会负责在第一次运行时创建 .npy 文件，后续直接 mmap 读取
+    mmap_dataset = MemoryMappedDataset(original_dataset=real_dataset, cache_path=cache_path, transform=final_transform)
+
     if is_train:
         split = "train" if use_aug else "train_plain"
     else:
         split = "test"
         
-    return DatasetStore("cifar10", split, real_dataset)
+    return DatasetStore("cifar10", split, mmap_dataset)
 
 # === 注册三个具体版本 ===
 

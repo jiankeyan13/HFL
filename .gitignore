@@ -6,6 +6,7 @@ __pycache__/
 # --- 实验日志与产出 (不要上传几百兆的日志) ---
 logs/
 wandb/
+trash/
 
 # --- 数据集 (不要上传 CIFAR10 数据) ---
 data_source/
