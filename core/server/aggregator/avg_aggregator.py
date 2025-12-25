@@ -11,27 +11,42 @@ class AvgAggregator(BaseAggregator):
 
     def aggregate(self, 
                   updates: List[Dict[str, torch.Tensor]], 
-                  weights: Optional[List[float]] = None, 
+                  sample_weights: Optional[List[float]] = None,
+                  screen_scores: Optional[List[float]] = None,
+                  global_model: torch.nn.Module = None,
                   **kwargs) -> Dict[str, torch.Tensor]:
         """
+        聚合客户端 Deltas 并返回完整模型权重。
+        
         Args:
-            updates: 客户端参数列表 (每个元素为一个 state_dict)
-            weights: 权重列表。如果为 None 则执行算术平均。
+            updates: 客户端模型差值列表
+            sample_weights: 样本数权重列表，为 None 时执行算术平均
+            screen_scores: 筛选器返回的分数列表 (0-1)，为 None 时视为全 1.0
+            global_model: 全局模型
+        Returns:
+            完整的模型 state_dict (global_model + aggregated_delta)
         """
         if not updates:
             raise ValueError("Updates list is empty")
         
         num_clients = len(updates)
 
-        if weights is None:
-            norm_weights = [1.0 / num_clients] * num_clients
-        else:
-            self._check_inputs(updates, weights)
-            norm_weights = self._normalize_weights(weights)
+        # 融合 sample_weights 和 screen_scores
+        if sample_weights is None:
+            sample_weights = [1.0] * num_clients
+        if screen_scores is None:
+            screen_scores = [1.0] * num_clients
+            
+        # 逐元素相乘得到最终权重
+        final_weights = [s * sc for s, sc in zip(sample_weights, screen_scores)]
+        
+        # 归一化
+        self._check_inputs(updates, final_weights)
+        norm_weights = self._normalize_weights(final_weights)
 
         w_tensor = torch.tensor(norm_weights, dtype=torch.float32, device=self.device)
 
-        aggregated_params = {}
+        aggregated_deltas = {}
         # 逐层遍历 (Layer-wise)
         layer_names = updates[0].keys() # 获取第一层的名称作为模板
 
@@ -46,6 +61,16 @@ class AvgAggregator(BaseAggregator):
             w_view_shape = [num_clients] + [1] * (layer_stack.dim() - 1)
             w_view = w_tensor.view(*w_view_shape)
 
-            aggregated_params[name] = torch.sum(layer_stack * w_view, dim=0)
+            aggregated_deltas[name] = torch.sum(layer_stack * w_view, dim=0)
 
-        return aggregated_params
+        # 构建完整的 state_dict: Base + Delta
+        final_weights = {}
+        global_state = global_model.state_dict()
+        
+        for key, value in global_state.items():
+            final_weights[key] = value.clone()
+            if key in aggregated_deltas:
+                delta = aggregated_deltas[key].to(value.device)
+                final_weights[key] += delta
+                    
+        return final_weights

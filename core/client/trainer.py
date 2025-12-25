@@ -36,7 +36,7 @@ class StandardTrainer:
                 attack_hooks['on_after_backward'](self.model)
             
             # 可以在这里加 Gradient Clipping
-            # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=5.0)
             
             optimizer.step()
             

@@ -2,7 +2,7 @@
 project: "FL-Test"
 name: "fedavg"
 seed: 2025
-device: "cuda:6"
+device: "cuda"
 use_wandb: true
 
 # --- 数据配置 ---

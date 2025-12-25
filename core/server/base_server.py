@@ -44,8 +44,8 @@ class BaseServer:
         self.device = device
         self.rng = random.Random(seed)
 
-        self.screener = screener
-        self.aggregator = aggregator or AvgAggregator() #默认使用 FedAvg 聚合
+        self.screener = screener or BaseScreener()
+        self.aggregator = aggregator or AvgAggregator()
         self.updater = updater or BaseUpdater()
 
 
@@ -89,22 +89,45 @@ class BaseServer:
 
     def step(self, updates: List[Dict[str, Any]], proxy_loader: Optional[DataLoader] = None):
         """
-        [核心防御流水线] 处理客户端上传的更新。
-        proxy_loader: 如果提供，将用于BN校准
+        [核心防御流水线] 筛选 -> 聚合 -> 更新。
+        proxy_loader: 如果提供, 将用于BN校准
         """
-
-        # 输入：原始更新列表 -> 输出：清洗后的更新列表 (可能变短)
-        if self.screener:
-            # 传入全局模型作为参考 (某些防御如 FLTrust 需要)
-            updates = self.screener.screen(updates, self.global_model)
-
-        client_weights = [up['weights'] for up in updates]
         num_samples = [up['num_samples'] for up in updates]
-        # 输入：更新列表 -> 输出：聚合后的权重 (weights dict)
-        aggregated_weights = self.aggregator.aggregate(updates=client_weights, weights=num_samples)
+        client_deltas = [self.compute_delta(up['weights'], self.global_model) for up in updates]
+        
+        # 阶段1: 筛选（返回每个客户端的信任分数）
+        screen_scores = self.screener.screen(
+            client_deltas=client_deltas,
+            num_samples=num_samples,
+            global_model=self.global_model
+        )
 
-        # 输入：聚合结果 + 当前模型 -> 输出：原地修改模型
+        # 阶段2: 聚合（融合 sample_weights 和 screen_scores）
+        aggregated_weights = self.aggregator.aggregate(
+            updates=client_deltas,
+            sample_weights=num_samples,
+            screen_scores=screen_scores,
+            global_model=self.global_model
+        )
+
+        # 阶段3: 更新（应用到全局模型 + BN 校准）
         self.updater.update(self.global_model, aggregated_weights, calibration_loader=proxy_loader, device=self.device)
+        
+    def compute_delta(self, client_state_dict, global_model):
+        delta_dict = {}
+        global_state_dict = global_model.state_dict()
+        
+        for key, global_tensor in global_state_dict.items():
+            # [修改点] 直接过滤掉 num_batches_tracked
+            if "num_batches_tracked" in key:
+                continue
+                
+            if key in client_state_dict:
+                client_tensor = client_state_dict[key].float().cpu()
+                global_tensor_cpu = global_tensor.float().cpu()
+                delta_dict[key] = client_tensor - global_tensor_cpu
+                
+        return delta_dict
 
     def eval(self, metrics: List[Callable], dataloader=None) -> Dict[str, float]:
         """
