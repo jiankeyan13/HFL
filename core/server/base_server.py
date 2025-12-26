@@ -90,28 +90,37 @@ class BaseServer:
     def step(self, updates: List[Dict[str, Any]], proxy_loader: Optional[DataLoader] = None):
         """
         [核心防御流水线] 筛选 -> 聚合 -> 更新。
-        proxy_loader: 如果提供, 将用于BN校准
+        context 用于在三个阶段之间传递信息。
         """
+        context = {}
         num_samples = [up['num_samples'] for up in updates]
         client_deltas = [self.compute_delta(up['weights'], self.global_model) for up in updates]
         
-        # 阶段1: 筛选（返回每个客户端的信任分数）
-        screen_scores = self.screener.screen(
+        # 阶段1: 筛选
+        screen_scores, context = self.screener.screen(
             client_deltas=client_deltas,
             num_samples=num_samples,
-            global_model=self.global_model
+            global_model=self.global_model,
+            context=context
         )
 
-        # 阶段2: 聚合（融合 sample_weights 和 screen_scores）
-        aggregated_weights = self.aggregator.aggregate(
+        # 阶段2: 聚合
+        aggregated_weights, context = self.aggregator.aggregate(
             updates=client_deltas,
             sample_weights=num_samples,
             screen_scores=screen_scores,
-            global_model=self.global_model
+            global_model=self.global_model,
+            context=context
         )
 
-        # 阶段3: 更新（应用到全局模型 + BN 校准）
-        self.updater.update(self.global_model, aggregated_weights, calibration_loader=proxy_loader, device=self.device)
+        # 阶段3: 更新
+        self.updater.update(
+            self.global_model, 
+            aggregated_weights, 
+            calibration_loader=proxy_loader, 
+            device=self.device,
+            context=context
+        )
         
     def compute_delta(self, client_state_dict, global_model):
         delta_dict = {}

@@ -1,2 +1,2 @@
 from .avg_aggregator import AvgAggregator
-# from .median_aggreator import MedianAggregator
+from .flame_aggregator import FlameAggregator
