@@ -5,7 +5,7 @@ import hdbscan
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.func import functional_call
+from torch.func import functional_call, vmap
 
 from core.utils.registry import SCREENER_REGISTRY
 from .base_screener import BaseScreener
@@ -22,7 +22,7 @@ class DeepSightScreener(BaseScreener):
     """
 
     def __init__(self, num_seeds: int = 3, num_samples: int = 20000,
-                 batch_size: int = 2000, tau: float = 1 / 3,
+                 batch_size: int = 512, tau: float = 1 / 3,
                  epsilon: float = 1e-7, **kwargs):
         super().__init__()
         self.num_seeds = num_seeds
@@ -183,15 +183,14 @@ class DeepSightScreener(BaseScreener):
                 with torch.inference_mode():
                     prob_output_global = self._to_prob(global_model(inputs))
 
-                # 顺序遍历客户端，避免 vmap 带来的高峰值显存
-                with torch.inference_mode():
-                    for idx in range(len(client_deltas)):
-                        params_i = {k: v[idx] for k, v in stacked_params.items()}
-                        buffers_i = {k: v[idx] for k, v in stacked_buffers.items()}
-                        logits_local = functional_call(global_model, (params_i, buffers_i), (inputs,))
-                        prob_output_local = self._to_prob(logits_local)
-                        ratio = torch.div(prob_output_local, prob_output_global + self.epsilon)
-                        seed_ddif[idx].add_(ratio.sum(dim=0))
+                def _per_client(params, buffers):
+                    logits_local = functional_call(global_model, (params, buffers), (inputs,))
+                    prob_output_local = self._to_prob(logits_local)
+                    ratio = torch.div(prob_output_local, prob_output_global + self.epsilon)
+                    return ratio.sum(dim=0)
+
+                batch_ddif = vmap(_per_client, in_dims=(0, 0))(stacked_params, stacked_buffers)
+                seed_ddif.add_(batch_ddif)
 
             seed_ddif /= self.num_samples
             ddifs.append(seed_ddif)
@@ -299,7 +298,7 @@ class DeepSightScreener(BaseScreener):
             return self._noise_cache[key]
 
         remaining = num_samples
-        num_batches = 20  # 拆成 20 份，减小单批显存占用
+        num_batches = max(1, math.ceil(num_samples / batch_size))
         batch_cap = max(1, math.ceil(num_samples / num_batches))
         noise_batches = []
 
