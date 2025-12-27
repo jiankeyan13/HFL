@@ -5,6 +5,7 @@ from core.utils.registry import AGGREGATOR_REGISTRY
 from .base_aggregator import BaseAggregator
 
 
+# 22usenix-FLAME & 22ndss-DeepSight 使用此聚合器
 @AGGREGATOR_REGISTRY.register("flame_aggregator")
 class FlameAggregator(BaseAggregator):
     """
