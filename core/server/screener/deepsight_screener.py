@@ -69,10 +69,10 @@ class DeepSightScreener(BaseScreener):
 
         # 集成聚类：DDif + NEUP + 余弦距离
         ddif_cluster_dists = self._build_ddif_distance(ddifs, num_clients)
-        neup_clusters = hdbscan.HDBSCAN(allow_single_cluster=True).fit_predict(neups.detach().cpu().numpy())
+        neup_clusters = hdbscan.HDBSCAN().fit_predict(neups.detach().cpu().numpy())
         neup_cluster_dists = self._dists_from_clust(neup_clusters, num_clients)
 
-        cosine_clusters = hdbscan.HDBSCAN(metric="precomputed", allow_single_cluster=True).fit_predict(cosine_distances.detach().cpu().numpy())
+        cosine_clusters = hdbscan.HDBSCAN(metric="precomputed").fit_predict(cosine_distances.detach().cpu().numpy())
         cosine_cluster_dists = self._dists_from_clust(cosine_clusters, num_clients)
 
         merged_distances = np.mean([ddif_cluster_dists, neup_cluster_dists, cosine_cluster_dists], axis=0)
@@ -203,7 +203,7 @@ class DeepSightScreener(BaseScreener):
 
         ddif_cluster_dists = []
         for i in range(len(ddifs)):
-            ddif_clusters = hdbscan.HDBSCAN(allow_single_cluster=True).fit_predict(ddifs[i])
+            ddif_clusters = hdbscan.HDBSCAN().fit_predict(ddifs[i])
             ddif_cluster_dists.append(self._dists_from_clust(ddif_clusters, num_clients))
         return np.mean(ddif_cluster_dists, axis=0)
 
