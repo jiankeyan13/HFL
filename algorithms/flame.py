@@ -20,6 +20,7 @@ def build_flame_algorithm(model, device, dataset_store, config, **kwargs) -> Tup
         (server_instance, client_class)
     """
     server_conf = config.get('server', {})
+    seed = kwargs.get('seed', config.get('seed', 42))
     
     # 初始化 FLAME 三组件
     screener_conf = server_conf.get('screener', {})
@@ -47,7 +48,8 @@ def build_flame_algorithm(model, device, dataset_store, config, **kwargs) -> Tup
         screener=screener,
         updater=updater,
         device=device,
-        test_loader=test_loader
+        test_loader=test_loader,
+        seed=seed,
     )
 
     return server, BaseClient

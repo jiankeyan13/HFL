@@ -18,6 +18,7 @@ def build_multi_krum_algorithm(model, device, dataset_store, config, **kwargs) -
         返回 server 实例和 client 类 -> 不能在此创建 client 对象
     """
     server_conf = config.get('server', {})
+    seed = kwargs.get('seed', config.get('seed', 42))
     screener_conf = server_conf.get('screener', {})
     
     # 从配置中读取 Krum 参数
@@ -40,8 +41,15 @@ def build_multi_krum_algorithm(model, device, dataset_store, config, **kwargs) -
         batch_size = config.get('client', {}).get('batch_size', 32)
         test_loader = DataLoader(server_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
-    server = BaseServer(model=model, aggregator=aggregator, screener=screener, updater=updater,\
-                    device=device, test_loader=test_loader)
+    server = BaseServer(
+        model=model,
+        aggregator=aggregator,
+        screener=screener,
+        updater=updater,
+        device=device,
+        test_loader=test_loader,
+        seed=seed,
+    )
 
     return server, BaseClient
 

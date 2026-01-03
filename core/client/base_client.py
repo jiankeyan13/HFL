@@ -35,7 +35,9 @@ class BaseClient:
                 task: Task,
                 dataset_store: DatasetStore,
                 config: Dict[str, Any],
-                attack_profile: Optional[Any] = None) -> Dict[str, Any]:
+                attack_profile: Optional[Any] = None,
+                payload: Optional[Dict[str, Any]] = None,
+                apply_fn: Optional[Callable[[torch.nn.Module, Dict[str, Any]], None]] = None) -> Dict[str, Any]:
         """
         执行一轮本地训练流程。
         
@@ -46,10 +48,12 @@ class BaseClient:
             config: 训练配置
             attack_profile: 攻击插件
         """
-        self.receive_model(global_state_dict, task, dataset_store, config)
+        if payload is not None and apply_fn is not None:
+            apply_fn(self.model, payload)
+        else:
+            self.receive_model(global_state_dict, task, dataset_store, config)
         
         # 保存初始权重，供某些攻击（如 Scaling Attack）计算 Delta 使用
-        # 注意：这里存的是 CPU 上的副本，不占显存
         initial_weights = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
 
         # 数据准备 (可能触发 BadNets/DBA)

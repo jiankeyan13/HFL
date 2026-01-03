@@ -125,8 +125,14 @@ class FederatedRunner:
         self.server, self.client_class = ALGORITHM_REGISTRY.build(
             algo_conf['name'],
             # --- 传递给 build_xxx_algorithm 的参数 ---
-            model=self.global_model, device=self.device, dataset_store=self.dataset_stores, config=self.config,\
-                server_test_task=self.server_test_task, **algo_conf.get('params', {}))
+            model=self.global_model,
+            device=self.device,
+            dataset_store=self.dataset_stores,
+            config=self.config,
+            seed=global_seed,
+            server_test_task=self.server_test_task,
+            **algo_conf.get('params', {}),
+        )
 
         self.logger.info(f"Algorithm Loaded: {algo_conf['name']}")
         self.logger.info(f"Server Type: {type(self.server).__name__}")
@@ -192,6 +198,7 @@ class FederatedRunner:
 
         self.logger.info(f"Training Finished. Best Acc: {best_acc:.4f}")
         self.logger.close()
+
     def _run_local_training(self, client_ids, client_models, config):
         """
         执行本地训练循环。
@@ -302,6 +309,7 @@ class FederatedRunner:
 
         # 返回干净指标，供外部使用 (如保存 Checkpoint)
         return clean_metrics
+        
     def _run_local_evaluation(self, round_idx, config, metrics):
         """
         抽样评估客户端本地性能。
